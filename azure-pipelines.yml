@@ -9,10 +9,10 @@ pool:
   name: 'Default'  # 你的 Self-hosted Agent Pool
 
 steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.x'
-    addToPath: true
+- script: |
+    python3 --version
+    which python3
+  displayName: 'Check Python Version'
 
 - script: |
     python -m pip install --upgrade pip
