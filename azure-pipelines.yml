@@ -9,26 +9,31 @@ pool:
   name: 'Default'  # 你的 Self-hosted Agent Pool
 
 steps:
-- script: |
-    python3 --version
-    which python3
-  displayName: 'Check Python Version'
+  - script: |
+      echo "Checking Python installation..."
+      python3 --version
+      which python3
+    displayName: 'Check Python Version'
+    
+  - script: |
+      echo "Upgrading pip and installing dependencies..."
+      python3 -m pip install --upgrade pip --break-system-packages
+      python3 -m pip install -r flask_app/requirements.txt --break-system-packages
+    displayName: 'Install Dependencies'
 
-- script: |
-    python3 -m pip install --upgrade pip
-    python3 -m pip install -r flask_app/requirements.txt
-  displayName: 'Install Dependencies'
+  - script: |
+      echo "Starting Flask App..."
+      python flask_app/app.py &
+      echo "Flask app is running in background..."
+      sleep 5  # 等待 Flask 啟動
+    displayName: 'Start Flask App'
 
-- script: |
-    python flask_app/app.py &
-    echo "Flask app is running in background..."
-    sleep 5  # 等待 Flask 啟動
-  displayName: 'Start Flask App'
+  - script: |
+      echo "Running API Tests..."
+      pytest flask_app/tests
+    displayName: 'Run API Tests'
 
-- script: |
-    pytest flask_app/tests
-  displayName: 'Run API Tests'
-
-- script: |
-    pkill -f app.py || echo "Flask process not found"
-  displayName: 'Stop Flask App'
+  - script: |
+      echo "Stopping Flask App..."
+      pkill -f app.py || echo "Flask process not found"
+    displayName: 'Stop Flask App'
