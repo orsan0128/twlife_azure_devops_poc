@@ -19,6 +19,7 @@ steps:
       echo "Upgrading pip and installing dependencies..."
       python3 -m pip install --upgrade pip --break-system-packages
       python3 -m pip install -r flask_app/requirements.txt --break-system-packages
+      python3 -m pip install -e .  # 讓 flask_app 被 Python 環境識別
     displayName: 'Install Dependencies'
 
   - script: |
@@ -30,6 +31,8 @@ steps:
 
   - script: |
       echo "Running API Tests..."
+      export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
+      echo "PYTHONPATH is set to $PYTHONPATH"
       pytest flask_app/tests
     displayName: 'Run API Tests'
 

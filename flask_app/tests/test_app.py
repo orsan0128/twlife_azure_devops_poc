@@ -1,16 +1,19 @@
 import pytest
-import requests
-from flask_app.app import app
+import sys
+import os
 
-BASE_URL = "http://127.0.0.1:5000"  # 確保 Flask 運行的 URL 正確
+# 確保 `flask_app` 目錄可以被找到
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from flask_app.app import app  # 確保這行可運行
 
 @pytest.fixture
 def client():
-    """ 使用 Flask test_client 運行測試，避免實際發送 HTTP 請求 """
+    """ 使用 Flask test_client 運行測試 """
     with app.test_client() as client:
         yield client
 
 def test_home(client):
-    """ 使用 test_client 直接測試 Flask API，而不是發送外部請求 """
+    """ 測試首頁是否回應 200 """
     response = client.get("/")
     assert response.status_code == 200
