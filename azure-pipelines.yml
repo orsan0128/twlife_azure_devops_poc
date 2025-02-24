@@ -1,13 +1,12 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+# Azure DevOps YAML Pipeline
 
 trigger:
 - main
+- dev
+- uat
 
 pool:
-  vmImage: ubuntu-latest
+  name: 'Default'  # 改成你的 Self-hosted Agent Pool
 
 steps:
 - script: echo Hello, world!
