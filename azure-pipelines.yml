@@ -14,7 +14,7 @@ steps:
       python3 --version
       which python3
     displayName: 'Check Python Version'
-    
+
   - script: |
       echo "Upgrading pip and installing dependencies..."
       python3 -m pip install --upgrade pip --break-system-packages
@@ -24,9 +24,9 @@ steps:
   - script: |
       echo "Starting Flask App..."
       python flask_app/app.py &
-      echo "Flask app is running in background..."
       sleep 5  # 等待 Flask 啟動
-    displayName: 'Start Flask App'
+      curl -v http://127.0.0.1:5000/
+    displayName: 'Start Flask & Check API'
 
   - script: |
       echo "Running API Tests..."
