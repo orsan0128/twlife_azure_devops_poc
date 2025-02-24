@@ -9,26 +9,36 @@ pool:
   name: 'Default'  # 你的 Self-hosted Agent Pool
 
 steps:
-- script: |
-    python3 --version
-    which python3
-  displayName: 'Check Python Version'
+  - script: |
+      echo "Checking Python installation..."
+      python3 --version
+      which python3
+    displayName: 'Check Python Version'
 
-- script: |
-    python -m pip install --upgrade pip
-    pip install -r flask_app/requirements.txt
-  displayName: 'Install Dependencies'
+  - script: |
+      echo "Creating Python Virtual Environment..."
+      python3 -m venv venv  # 建立虛擬環境
+      source venv/bin/activate  # 啟動虛擬環境
+      echo "Upgrading pip and installing dependencies..."
+      python -m pip install --upgrade pip
+      python -m pip install -r flask_app/requirements.txt
+    displayName: 'Install Dependencies'
 
-- script: |
-    python flask_app/app.py &
-    echo "Flask app is running in background..."
-    sleep 5  # 等待 Flask 啟動
-  displayName: 'Start Flask App'
+  - script: |
+      echo "Starting Flask App..."
+      python flask_app/app.py &
+      sleep 5  # 等待 Flask 啟動
+      curl -v http://127.0.0.1:5000/
+    displayName: 'Start Flask & Check API'
 
-- script: |
-    pytest flask_app/tests
-  displayName: 'Run API Tests'
+  - script: |
+      echo "Running API Tests..."
+      export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
+      echo "PYTHONPATH is set to $PYTHONPATH"
+      pytest flask_app/tests
+    displayName: 'Run API Tests'
 
-- script: |
-    pkill -f app.py || echo "Flask process not found"
-  displayName: 'Stop Flask App'
+  - script: |
+      echo "Stopping Flask App..."
+      pkill -f app.py || echo "Flask process not found"
+    displayName: 'Stop Flask App'
