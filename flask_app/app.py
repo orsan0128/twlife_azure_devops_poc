@@ -1,3 +1,7 @@
+"""
+This module contains the core Flask application setup,
+including route definitions and configurations.
+"""
 from flask import Flask
 from flask_app.routes.home import home_bp
 from flask_app.routes.version import version_bp
