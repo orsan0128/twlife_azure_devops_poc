@@ -21,24 +21,27 @@ steps:
       source venv/bin/activate  # 啟動虛擬環境
       echo "Upgrading pip and installing dependencies..."
       python -m pip install --upgrade pip
-      python -m pip install -r flask_app/requirements.txt
+      python -m pip install -r flask_app/requirements.txt  # 安裝依賴
     displayName: 'Install Dependencies'
 
   - script: |
       echo "Starting Flask App..."
-      python flask_app/app.py &
-      sleep 5  # 等待 Flask 啟動
-      curl -v http://127.0.0.1:5000/
+      source venv/bin/activate  # 確保使用虛擬環境
+      export FLASK_APP=flask_app.app  # 設置 FLASK_APP 環境變數
+      flask run --host=0.0.0.0 --port=5001 &  # 啟動 Flask 應用
+      sleep 10  # 等待 Flask 啟動
+      curl -v http://127.0.0.1:5001/  # 驗證 API
     displayName: 'Start Flask & Check API'
 
   - script: |
       echo "Running API Tests..."
+      source venv/bin/activate  # 確保使用虛擬環境
       export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
       echo "PYTHONPATH is set to $PYTHONPATH"
-      pytest flask_app/tests
+      pytest flask_app/tests  # 執行 API 測試
     displayName: 'Run API Tests'
 
   - script: |
       echo "Stopping Flask App..."
-      pkill -f app.py || echo "Flask process not found"
+      pkill -f app.py || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
