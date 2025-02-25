@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, current_app
 
 routes_bp = Blueprint("routes", __name__)
 
+
 @routes_bp.route("/routes", methods=["GET"])
 def list_routes():
     """回傳目前所有的 API 路由"""

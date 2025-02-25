@@ -7,6 +7,7 @@ metrics_bp = Blueprint("metrics", __name__)
 request_count = 0
 start_time = time.time()
 
+
 @metrics_bp.route("/metrics", methods=["GET"])
 def app_metrics():
     """提供 Flask 應用的基礎指標，供 Prometheus 監控"""
