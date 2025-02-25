@@ -1,3 +1,6 @@
+"""
+This module handles health status for the application.
+"""
 from flask import Blueprint, jsonify
 
 health_bp = Blueprint("health", __name__)

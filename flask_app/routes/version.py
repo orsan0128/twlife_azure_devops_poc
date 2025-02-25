@@ -1,3 +1,6 @@
+"""
+This module provide version for the application.
+"""
 from flask import Blueprint, jsonify
 
 version_bp = Blueprint("version", __name__)
