@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask API 首頁</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin: auto;
+        }
+        .routes {
+            list-style-type: none;
+            padding: 0;
+        }
+        .routes li {
+            margin: 10px 0;
+        }
+        .routes a {
+            text-decoration: none;
+            color: #007bff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .routes a:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🚀 Flask API 首頁</h1>
+        <p>目前可用的 API 路徑：</p>
+        <ul class="routes">
+            <li><a href="/">🏠 首頁</a></li>
+            <li><a href="/version">📌 版本資訊</a></li>
+            <li><a href="/health">❤️ 健康檢查</a></li>
+            <li><a href="/routes">🔍 API 清單</a></li>
+            <li><a href="/status">🖥 系統狀態</a></li>  <!-- ✅ 新增 -->
+            <li><a href="/metrics">📊 應用指標</a></li>  <!-- ✅ 新增 -->
+            <li><a href="/config">⚙️ 設定變數</a></li>  <!-- ✅ 新增 -->
+        </ul>
+    </div>
+
+</body>
+</html>
