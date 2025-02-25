@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 
 version_bp = Blueprint("version", __name__)
 
+
 @version_bp.route("/version", methods=["GET"])
 def get_version():
     """回傳應用程式的版本資訊"""

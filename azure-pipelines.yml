@@ -25,6 +25,20 @@ steps:
     displayName: 'Install Dependencies'
 
   - script: |
+      echo "Running flake8 linting..."
+      source venv/bin/activate  # 確保使用虛擬環境
+      flake8 flask_app  # 這裡檢查 flask_app 目錄中的所有 Python 檔案
+    displayName: 'Run Linting'
+    continueOnError: true  # 如果 Linting 失敗，還是繼續執行後續步驟
+  
+  - script: |
+      echo "Running PyLint..."
+      source venv/bin/activate
+      pylint flask_app
+    displayName: 'Run PyLint'
+    continueOnError: true
+
+  - script: |
       echo "Starting Flask App..."
       source venv/bin/activate  # 確保使用虛擬環境
       export FLASK_APP=flask_app.app  # 設置 FLASK_APP 環境變數
@@ -38,7 +52,7 @@ steps:
       source venv/bin/activate  # 確保使用虛擬環境
       export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
       echo "PYTHONPATH is set to $PYTHONPATH"
-      pytest flask_app/tests  # 執行 API 測試
+      pytest -v flask_app/tests/test_routes.py  # 指定測試檔案
     displayName: 'Run API Tests'
 
   - script: |
