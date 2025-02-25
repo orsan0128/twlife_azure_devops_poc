@@ -1,0 +1,4 @@
+# 忽略 __pycache__ 目錄
+__pycache__/
+*.pyc
+*.pyo
