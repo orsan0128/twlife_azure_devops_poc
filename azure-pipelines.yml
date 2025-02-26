@@ -3,17 +3,17 @@ trigger:
     include:
       - main
       - dev
-      - uat  # 這些分支有變更時會執行完整 Pipeline
+      - uat
 
 pr:
   branches:
     include:
       - main
       - dev
-      - uat  # PR 只執行 CI（測試、Lint），不進行部署
+      - uat
 
 pool:
-  name: 'Default'  # 你的 Self-hosted Agent Pool
+  name: 'Default'
 
 steps:
   - script: |
@@ -67,57 +67,70 @@ steps:
       pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
 
-  # **先清除 `__pycache__` 和 `.pyc`，確保不被打包**
+  # **🔹 確保 requirements.txt 在根目錄**
   - script: |
-      echo "Cleaning up __pycache__ and .pyc files before packaging..."
-      find flask_app -name "__pycache__" -type d -exec rm -rf {} +
-      find flask_app -name "*.pyc" -type f -delete
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-    displayName: 'Clean up __pycache__ and .pyc files (Before Packaging)'
+      echo "Copying requirements.txt to root directory..."
+      cp flask_app/requirements.txt .
+    displayName: 'Move requirements.txt to root'
 
-  # **只在 Merge 時打包 & 部署**
+  # **🔹 確保 requirements.txt 確實存在**
+  - script: |
+      echo "Checking if requirements.txt exists..."
+      if [ -f requirements.txt ]; then
+        echo "✅ Found requirements.txt in root directory."
+      else
+        echo "❌ requirements.txt NOT found in root directory!"
+        exit 1
+      fi
+    displayName: 'Check if requirements.txt exists before packaging'
+
   - task: ArchiveFiles@2
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
-      rootFolderOrFile: '$(System.DefaultWorkingDirectory)/flask_app'
-      includeRootFolder: true
+      rootFolderOrFile: '.'
+      includeRootFolder: false
       archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
       replaceExistingArchive: true
       verbose: true
+      contents: |
+        flask_app/**
+        requirements.txt
       exclude: |
-        **/__pycache__/**
-        **/*.pyc
-    displayName: 'Archive flask_app folder (Only on Merge)'
+        **/.git/**        
+        **/.gitignore     
+        **/.flake8        
+        **/LICENSE        
+        **/README.md      
+        **/azure-pipelines.yml  
+        **/venv/**        
+        **/__pycache__/** 
+        **/*.pyc         
+    displayName: 'Archive flask_app + requirements.txt (Only on Merge)'
 
+
+  # **🔹 確保 App Service 內部會執行 pip install**
   - task: AzureWebApp@1
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
-      azureSubscription: 'twlife_azure_devops_poc'  # 您創建的 Service Connection 名稱
-      appName: 'twlife-azure-devops-poc'  # 您的 Azure App Service 名稱
-      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'  # 指向打包好的 ZIP 檔
+      azureSubscription: 'twlife_azure_devops_poc'
+      appName: 'twlife-azure-devops-poc'
+      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
+      appSettings: |
+        -SCM_DO_BUILD_DURING_DEPLOYMENT 1
     displayName: 'Deploy to Azure App Service (Only on Merge)'
 
-  # **新增：部署後在 App Service 內執行 pip install**
+  # **🔹 檢查 Flask 是否成功啟動**
   - script: |
-      echo "Installing dependencies inside App Service..."
-      cd /home/site/wwwroot
-      pip install --upgrade pip
-      pip install -r flask_app/requirements.txt || echo "requirements.txt install failed"
-    displayName: 'Install dependencies in App Service'
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-
-  # **檢查 Flask 是否成功啟動**
-  - script: |
-      echo "Checking if Flask is running on localhost..."
-      HEALTH_URL="http://localhost:8000/health"
+      echo "Checking if Flask is running on App Service..."
+      HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net:8000/health"
       for i in {1..10}; do
           HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
           if [ "$HTTP_CODE" -eq 200 ]; then
               echo "Flask is up and running at $HEALTH_URL!"
               exit 0
           fi
-          echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
-          sleep 5
+          echo "Health check failed with status $HTTP_CODE, retrying in 10s..."
+          sleep 10
       done
       echo "Flask service did not start in time. Failing deployment."
       exit 1
