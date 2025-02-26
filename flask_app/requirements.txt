@@ -4,3 +4,4 @@ requests
 psutil
 flake8
 pylint
+gunicorn==20.1.0

@@ -2,6 +2,7 @@
 This module contains the core Flask application setup,
 including route definitions and configurations.
 """
+import os
 from flask import Flask
 from flask_app.routes.home import home_bp
 from flask_app.routes.version import version_bp
@@ -22,5 +23,5 @@ app.register_blueprint(metrics_bp)
 app.register_blueprint(config_bp)
 
 if __name__ == "__main__":
-    print("🚀 Starting Flask server on http://127.0.0.1:5001/")
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host="0.0.0.0", port=port, debug=True)
