@@ -3,5 +3,6 @@ pytest
 requests
 psutil
 flake8
+prometheus_client
 pylint
 gunicorn==22.0.0
