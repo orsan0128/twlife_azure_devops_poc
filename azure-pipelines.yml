@@ -13,7 +13,7 @@ pr:
       - uat  # PR 只執行 CI（測試、Lint），不進行部署
 
 pool:
-  name: 'Default'  # 你的 Self-hosted Agent Pool
+  name: 'Default'
 
 steps:
   - script: |
@@ -24,17 +24,17 @@ steps:
 
   - script: |
       echo "Creating Python Virtual Environment..."
-      python3 -m venv venv  # 建立虛擬環境
-      source venv/bin/activate  # 啟動虛擬環境
+      python3 -m venv venv
+      source venv/bin/activate
       echo "Upgrading pip and installing dependencies..."
       python -m pip install --upgrade pip
-      python -m pip install -r flask_app/requirements.txt  # 安裝依賴
+      python -m pip install -r flask_app/requirements.txt
     displayName: 'Install Dependencies'
 
   - script: |
       echo "Running flake8 linting..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
+      source venv/bin/activate
+      flake8 flask_app
     displayName: 'Run Linting'
     continueOnError: true
 
@@ -47,27 +47,33 @@ steps:
 
   - script: |
       echo "Starting Flask App..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      export FLASK_APP=flask_app.app  # 設置 FLASK_APP 環境變數
-      flask run --host=0.0.0.0 --port=5001 &  # 啟動 Flask 應用
-      sleep 10  # 等待 Flask 啟動
-      curl -v http://127.0.0.1:5001/  # 驗證 API
+      source venv/bin/activate
+      export FLASK_APP=flask_app.app
+      flask run --host=0.0.0.0 --port=5001 &
+      sleep 10
+      curl -v http://127.0.0.1:5001/
     displayName: 'Start Flask & Check API'
 
   - script: |
       echo "Running API Tests..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
+      source venv/bin/activate
+      export PYTHONPATH=$(pwd)
       echo "PYTHONPATH is set to $PYTHONPATH"
-      pytest -v flask_app/tests/test_routes.py  # 指定測試檔案
+      pytest -v flask_app/tests/test_routes.py
     displayName: 'Run API Tests'
 
   - script: |
       echo "Stopping Flask App..."
-      pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
+      pkill -f flask || echo "Flask process not found"
     displayName: 'Stop Flask App'
 
-  # **先清除 `__pycache__` 和 `.pyc`，確保不被打包**
+  # **  確保 `requirements.txt` 在打包時一起傳到 Azure**
+  - script: |
+      echo "Copying requirements.txt to build directory..."
+      cp flask_app/requirements.txt $(Build.ArtifactStagingDirectory)/requirements.txt
+    displayName: 'Move requirements.txt to Root'
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
   - script: |
       echo "Cleaning up __pycache__ and .pyc files before packaging..."
       find flask_app -name "__pycache__" -type d -exec rm -rf {} +
@@ -75,11 +81,11 @@ steps:
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     displayName: 'Clean up __pycache__ and .pyc files (Before Packaging)'
 
-  # **只在 Merge 時打包 & 部署**
+  # ** 修改打包步驟，確保 `requirements.txt` 也包含在 ZIP 檔案內**
   - task: ArchiveFiles@2
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
-      rootFolderOrFile: '$(System.DefaultWorkingDirectory)/flask_app'
+      rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
       includeRootFolder: true
       archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
       replaceExistingArchive: true
@@ -87,24 +93,15 @@ steps:
       exclude: |
         **/__pycache__/**
         **/*.pyc
-    displayName: 'Archive flask_app folder (Only on Merge)'
+    displayName: 'Archive flask_app folder + requirements.txt (Only on Merge)'
 
   - task: AzureWebApp@1
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
-      azureSubscription: 'twlife_azure_devops_poc'  # 您創建的 Service Connection 名稱
-      appName: 'twlife-azure-devops-poc'  # 您的 Azure App Service 名稱
-      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'  # 指向打包好的 ZIP 檔
+      azureSubscription: 'twlife_azure_devops_poc'
+      appName: 'twlife-azure-devops-poc'
+      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
     displayName: 'Deploy to Azure App Service (Only on Merge)'
-
-  # **新增：部署後在 App Service 內執行 pip install**
-  - script: |
-      echo "Installing dependencies inside App Service..."
-      cd /home/site/wwwroot
-      pip install --upgrade pip
-      pip install -r flask_app/requirements.txt || echo "requirements.txt install failed"
-    displayName: 'Install dependencies in App Service'
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
 
   # **檢查 Flask 是否成功啟動**
   - script: |
@@ -116,7 +113,7 @@ steps:
               echo "Flask is up and running at $HEALTH_URL!"
               exit 0
           fi
-          echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
+          echo "⚠️ Health check failed with status $HTTP_CODE, retrying in 5s..."
           sleep 5
       done
       echo "Flask service did not start in time. Failing deployment."
