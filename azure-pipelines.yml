@@ -67,7 +67,15 @@ steps:
       pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
 
-  # 只有 Merge 時才會執行打包
+  # **🔹 先清除 `__pycache__` 和 `.pyc`，確保不被打包**
+  - script: |
+      echo "Cleaning up __pycache__ and .pyc files before packaging..."
+      find flask_app -name "__pycache__" -type d -exec rm -rf {} +
+      find flask_app -name "*.pyc" -type f -delete
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    displayName: 'Clean up __pycache__ and .pyc files (Before Packaging)'
+
+  # **🔹 只在 Merge 時打包 & 部署**
   - task: ArchiveFiles@2
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
@@ -76,11 +84,11 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
       replaceExistingArchive: true
       verbose: true
-      # **排除 __pycache__ 及 .pyc 檔案**
-      exclude: '**/__pycache__/**, **/*.pyc'
+      exclude: |
+        **/__pycache__/**
+        **/*.pyc
     displayName: 'Archive flask_app folder (Only on Merge)'
 
-  # 只有 Merge 時才會執行部署
   - task: AzureWebApp@1
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
