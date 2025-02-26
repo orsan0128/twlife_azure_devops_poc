@@ -36,7 +36,7 @@ steps:
       source venv/bin/activate  # 確保使用虛擬環境
       flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
     displayName: 'Run Linting'
-    continueOnError: true  # 如果 Linting 失敗，仍繼續
+    continueOnError: true
 
   - script: |
       echo "Running PyLint..."
@@ -67,7 +67,7 @@ steps:
       pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
 
-  # **🔹 先清除 `__pycache__` 和 `.pyc`，確保不被打包**
+  # **先清除 `__pycache__` 和 `.pyc`，確保不被打包**
   - script: |
       echo "Cleaning up __pycache__ and .pyc files before packaging..."
       find flask_app -name "__pycache__" -type d -exec rm -rf {} +
@@ -75,7 +75,7 @@ steps:
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     displayName: 'Clean up __pycache__ and .pyc files (Before Packaging)'
 
-  # **🔹 只在 Merge 時打包 & 部署**
+  # **只在 Merge 時打包 & 部署**
   - task: ArchiveFiles@2
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
@@ -96,3 +96,30 @@ steps:
       appName: 'twlife-azure-devops-poc'  # 您的 Azure App Service 名稱
       package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'  # 指向打包好的 ZIP 檔
     displayName: 'Deploy to Azure App Service (Only on Merge)'
+
+  # **新增：部署後在 App Service 內執行 pip install**
+  - script: |
+      echo "Installing dependencies inside App Service..."
+      cd /home/site/wwwroot
+      pip install --upgrade pip
+      pip install -r flask_app/requirements.txt || echo "requirements.txt install failed"
+    displayName: 'Install dependencies in App Service'
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  # **檢查 Flask 是否成功啟動**
+  - script: |
+      echo "Checking if Flask is running on localhost..."
+      HEALTH_URL="http://localhost:8000/health"
+      for i in {1..10}; do
+          HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
+          if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "Flask is up and running at $HEALTH_URL!"
+              exit 0
+          fi
+          echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
+          sleep 5
+      done
+      echo "Flask service did not start in time. Failing deployment."
+      exit 1
+    displayName: 'Check Flask Health (Post Deployment)'
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
