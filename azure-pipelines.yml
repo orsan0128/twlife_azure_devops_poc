@@ -35,7 +35,7 @@ steps:
       echo "Running flake8 linting..."
       source venv/bin/activate  # 確保使用虛擬環境
       flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
-    displayName: 'Run Linting'
+    displayName: 'Run Flake8'
     continueOnError: true
 
   - script: |
@@ -122,15 +122,15 @@ steps:
   # **🔹 檢查 Flask 是否成功啟動**
   - script: |
       echo "Checking if Flask is running on App Service..."
-      HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net:8000/health"
+      HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net/health"
       for i in {1..10}; do
           HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
           if [ "$HTTP_CODE" -eq 200 ]; then
               echo "Flask is up and running at $HEALTH_URL!"
               exit 0
           fi
-          echo "Health check failed with status $HTTP_CODE, retrying in 10s..."
-          sleep 10
+          echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
+          sleep 5
       done
       echo "Flask service did not start in time. Failing deployment."
       exit 1
