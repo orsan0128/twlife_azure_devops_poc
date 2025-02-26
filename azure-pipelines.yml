@@ -27,10 +27,10 @@ steps:
   - script: |
       echo "Running flake8 linting..."
       source venv/bin/activate  # 確保使用虛擬環境
-      flake8 flask_app  # 這裡檢查 flask_app 目錄中的所有 Python 檔案
+      flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
     displayName: 'Run Linting'
-    continueOnError: true  # 如果 Linting 失敗，還是繼續執行後續步驟
-  
+    continueOnError: true  # 如果 Linting 失敗，仍繼續
+
   - script: |
       echo "Running PyLint..."
       source venv/bin/activate
@@ -57,5 +57,22 @@ steps:
 
   - script: |
       echo "Stopping Flask App..."
-      pkill -f app.py || echo "Flask process not found"  # 停止 Flask 應用
+      pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
+
+  # Archive the flask_app folder while preserving its folder structure
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)/flask_app'
+      includeRootFolder: true
+      archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
+      replaceExistingArchive: true
+    displayName: 'Archive flask_app folder'
+
+  # Deploy the ZIP package to Azure App Service
+  - task: AzureWebApp@1
+    inputs:
+      azureSubscription: 'twlife_azure_devops_poc'  # 您創建的 Service Connection 名稱
+      appName: 'twlife-azure-devops-poc'  # 您的 Azure App Service 名稱
+      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'  # 指向打包好的 ZIP 檔
+    displayName: 'Deploy to Azure App Service'

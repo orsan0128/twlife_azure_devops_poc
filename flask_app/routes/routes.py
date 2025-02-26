@@ -1,3 +1,6 @@
+"""
+This module provide all api for the application.
+"""
 from flask import Blueprint, jsonify, current_app
 
 routes_bp = Blueprint("routes", __name__)
