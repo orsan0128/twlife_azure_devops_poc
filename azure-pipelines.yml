@@ -3,7 +3,14 @@ trigger:
     include:
       - main
       - dev
-      - uat
+      - uat  # 這些分支有變更時會執行完整 Pipeline
+
+pr:
+  branches:
+    include:
+      - main
+      - dev
+      - uat  # PR 只執行 CI（測試、Lint），不進行部署
 
 pool:
   name: 'Default'  # 你的 Self-hosted Agent Pool
@@ -60,19 +67,24 @@ steps:
       pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
     displayName: 'Stop Flask App'
 
-  # Archive the flask_app folder while preserving its folder structure
+  # 只有 Merge 時才會執行打包
   - task: ArchiveFiles@2
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
       rootFolderOrFile: '$(System.DefaultWorkingDirectory)/flask_app'
       includeRootFolder: true
       archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
       replaceExistingArchive: true
-    displayName: 'Archive flask_app folder'
+      verbose: true
+      # **排除 __pycache__ 及 .pyc 檔案**
+      exclude: '**/__pycache__/**, **/*.pyc'
+    displayName: 'Archive flask_app folder (Only on Merge)'
 
-  # Deploy the ZIP package to Azure App Service
+  # 只有 Merge 時才會執行部署
   - task: AzureWebApp@1
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
       azureSubscription: 'twlife_azure_devops_poc'  # 您創建的 Service Connection 名稱
       appName: 'twlife-azure-devops-poc'  # 您的 Azure App Service 名稱
       package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'  # 指向打包好的 ZIP 檔
-    displayName: 'Deploy to Azure App Service'
+    displayName: 'Deploy to Azure App Service (Only on Merge)'
