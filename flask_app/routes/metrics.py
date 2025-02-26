@@ -1,31 +1,67 @@
 """
-This module handles metrics for the application.
+This module handles metrics for the application and integrates with Prometheus.
 """
 
 import time  # 標準庫放前面
-
-from flask import Blueprint, jsonify
+from flask import Blueprint, request
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
 metrics_bp = Blueprint("metrics", __name__)
 
-# 模擬 Flask 監控數據，將計數器附加到 blueprint 上
-metrics_bp.request_count = 0
+# ✅ Prometheus 指標
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total number of HTTP requests",
+    ["method", "endpoint"],
+)
+
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds",
+    "Request latency in seconds",
+    ["method", "endpoint"],
+)
+
+ACTIVE_REQUESTS = Gauge(
+    "active_http_requests",
+    "Number of active HTTP requests",
+)
+
+APP_UPTIME = Gauge(
+    "app_uptime_seconds",
+    "Application uptime in seconds",
+)
+
+# 記錄應用啟動時間
 start_time = time.time()
 
 
+@metrics_bp.before_app_request
+def before_request():
+    """請求進入時：計數並標記開始時間"""
+    request.start_time = time.time()
+    ACTIVE_REQUESTS.inc()  # 增加活躍請求計數
+
+
+@metrics_bp.after_app_request
+def after_request(response):
+    """請求完成時：記錄處理時間並減少活躍請求數"""
+    request_latency = time.time() - request.start_time
+    REQUEST_LATENCY.labels(request.method, request.path).observe(request_latency)
+    REQUEST_COUNT.labels(request.method, request.path).inc()
+    ACTIVE_REQUESTS.dec()  # 減少活躍請求計數
+    return response
+
+
 @metrics_bp.route("/metrics", methods=["GET"])
-def app_metrics():
+def prometheus_metrics():
     """
-    提供 Flask 應用的基礎指標，供 Prometheus 監控
-
-    這個函數會更新請求計數器、計算運行時間，並以 JSON 格式返回指標資訊。
+    提供 Flask 應用的 Prometheus 格式指標
     """
-    # 更新 blueprint 上的請求計數器，避免使用 global
-    metrics_bp.request_count += 1
-    uptime = round(time.time() - start_time, 2)
-
-    return jsonify({
-        "requests_served": metrics_bp.request_count,
-        "uptime_seconds": uptime,
-        "http_status": 200
-    }), 200
+    APP_UPTIME.set(time.time() - start_time)  # 設定應用運行時間
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
