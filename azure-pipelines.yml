@@ -96,17 +96,10 @@ steps:
         flask_app/**
         requirements.txt
       exclude: |
-        **/.git/**        
-        **/.gitignore     
-        **/.flake8        
-        **/LICENSE        
-        **/README.md      
-        **/azure-pipelines.yml  
-        **/venv/**        
-        **/__pycache__/** 
-        **/*.pyc         
+        **/*
+        !flask_app/**
+        !requirements.txt
     displayName: 'Archive flask_app + requirements.txt (Only on Merge)'
-
 
   # **🔹 確保 App Service 內部會執行 pip install**
   - task: AzureWebApp@1
@@ -125,7 +118,7 @@ steps:
       HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net/health"
       for i in {1..10}; do
           HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
-          if [ "$HTTP_CODE" -eq 200 ]; then
+          if [ "$HTTP_CODE" -eq 200]; then
               echo "Flask is up and running at $HEALTH_URL!"
               exit 0
           fi
