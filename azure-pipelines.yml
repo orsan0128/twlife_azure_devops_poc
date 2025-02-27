@@ -69,17 +69,21 @@ steps:
 
   # **🔹 確保 requirements.txt 在根目錄**
   - script: |
-      echo "Copying requirements.txt to root directory..."
-      cp flask_app/requirements.txt .
-    displayName: 'Move requirements.txt to root'
+      echo "Creating package directory..."
+      mkdir -p package
+      echo "Copying requirements.txt to package directory..."
+      cp flask_app/requirements.txt package/
+      echo "Copying flask_app to package directory..."
+      cp -r flask_app package/
+    displayName: 'Prepare Package Directory'
 
   # **🔹 確保 requirements.txt 確實存在**
   - script: |
-      echo "Checking if requirements.txt exists..."
-      if [ -f requirements.txt ]; then
-        echo "✅ Found requirements.txt in root directory."
+      echo "Checking if requirements.txt exists in package directory..."
+      if [ -f package/requirements.txt ]; then
+        echo "✅ Found requirements.txt in package directory."
       else
-        echo "❌ requirements.txt NOT found in root directory!"
+        echo "❌ requirements.txt NOT found in package directory!"
         exit 1
       fi
     displayName: 'Check if requirements.txt exists before packaging'
@@ -87,18 +91,11 @@ steps:
   - task: ArchiveFiles@2
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     inputs:
-      rootFolderOrFile: '.'
+      rootFolderOrFile: 'package'
       includeRootFolder: false
       archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
       replaceExistingArchive: true
       verbose: true
-      contents: |
-        flask_app/**
-        requirements.txt
-      exclude: |
-        **/*
-        !flask_app/**
-        !requirements.txt
     displayName: 'Archive flask_app + requirements.txt (Only on Merge)'
 
   # **🔹 確保 App Service 內部會執行 pip install**
@@ -118,7 +115,7 @@ steps:
       HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net/health"
       for i in {1..10}; do
           HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
-          if [ "$HTTP_CODE" -eq 200]; then
+          if [ "$HTTP_CODE" -eq 200 ]; then
               echo "Flask is up and running at $HEALTH_URL!"
               exit 0
           fi
