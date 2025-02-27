@@ -15,114 +15,128 @@ pr:
 pool:
   name: 'Default'
 
-steps:
-  - script: |
-      echo "Checking Python installation..."
-      python3 --version
-      which python3
-    displayName: 'Check Python Version'
+jobs:
+  - job: Setup
+    displayName: 'Setup Environment'
+    steps:
+      - script: |
+          echo "Checking Python installation..."
+          python3 --version
+          which python3
+        displayName: 'Verify Python Installation and Path'
 
-  - script: |
-      echo "Creating Python Virtual Environment..."
-      python3 -m venv venv  # 建立虛擬環境
-      source venv/bin/activate  # 啟動虛擬環境
-      echo "Upgrading pip and installing dependencies..."
-      python -m pip install --upgrade pip
-      python -m pip install -r flask_app/requirements.txt  # 安裝依賴
-    displayName: 'Install Dependencies'
+      - script: |
+          echo "Creating Python Virtual Environment..."
+          python3 -m venv venv  # 建立虛擬環境
+          source venv/bin/activate  # 啟動虛擬環境
+          echo "Upgrading pip and installing dependencies..."
+          python -m pip install --upgrade pip
+          python -m pip install -r flask_app/requirements.txt  # 安裝依賴
+        displayName: 'Setup Virtual Environment and Install Dependencies'
 
-  - script: |
-      echo "Running flake8 linting..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
-    displayName: 'Run Flake8'
-    continueOnError: true
+  - job: Lint
+    displayName: 'Lint Code'
+    dependsOn: Setup
+    steps:
+      - script: |
+          echo "Running flake8 linting..."
+          source venv/bin/activate  # 確保使用虛擬環境
+          flake8 flask_app  # 檢查 flask_app 目錄中的所有 Python 檔案
+        displayName: 'Execute Flake8 Linting on flask_app'
+        continueOnError: true
 
-  - script: |
-      echo "Running PyLint..."
-      source venv/bin/activate
-      pylint flask_app
-    displayName: 'Run PyLint'
-    continueOnError: true
+      - script: |
+          echo "Running PyLint..."
+          source venv/bin/activate
+          pylint flask_app
+        displayName: 'Execute PyLint on flask_app'
+        continueOnError: true
 
-  - script: |
-      echo "Starting Flask App..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      export FLASK_APP=flask_app.app  # 設置 FLASK_APP 環境變數
-      flask run --host=0.0.0.0 --port=5001 &  # 啟動 Flask 應用
-      sleep 10  # 等待 Flask 啟動
-      curl -v http://127.0.0.1:5001/  # 驗證 API
-    displayName: 'Start Flask & Check API'
+  - job: Test
+    displayName: 'Run Tests'
+    dependsOn: Setup
+    steps:
+      - script: |
+          echo "Starting Flask App..."
+          source venv/bin/activate  # 確保使用虛擬環境
+          export FLASK_APP=flask_app.app  # 設置 FLASK_APP 環境變數
+          flask run --host=0.0.0.0 --port=5001 &  # 啟動 Flask 應用
+          sleep 10  # 等待 Flask 啟動
+          curl -v http://127.0.0.1:5001/  # 驗證 API
+        displayName: 'Launch Flask App and Verify API'
 
-  - script: |
-      echo "Running API Tests..."
-      source venv/bin/activate  # 確保使用虛擬環境
-      export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
-      echo "PYTHONPATH is set to $PYTHONPATH"
-      pytest -v flask_app/tests/test_routes.py  # 指定測試檔案
-    displayName: 'Run API Tests'
+      - script: |
+          echo "Running API Tests..."
+          source venv/bin/activate  # 確保使用虛擬環境
+          export PYTHONPATH=$(pwd)  # 確保 pytest 能找到 flask_app
+          echo "PYTHONPATH is set to $PYTHONPATH"
+          pytest -v flask_app/tests/test_routes.py  # 指定測試檔案
+        displayName: 'Execute API Tests with pytest'
 
-  - script: |
-      echo "Stopping Flask App..."
-      pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
-    displayName: 'Stop Flask App'
+      - script: |
+          echo "Stopping Flask App..."
+          pkill -f flask || echo "Flask process not found"  # 停止 Flask 應用
+        displayName: 'Terminate Flask App Process'
 
-  # **🔹 確保 requirements.txt 在根目錄**
-  - script: |
-      echo "Creating package directory..."
-      mkdir -p package
-      echo "Copying requirements.txt to package directory..."
-      cp flask_app/requirements.txt package/
-      echo "Copying flask_app to package directory..."
-      cp -r flask_app package/
-    displayName: 'Prepare Package Directory'
+  - job: Package
+    displayName: 'Package Application'
+    dependsOn: Test
+    steps:
+      - script: |
+          echo "Creating package directory..."
+          mkdir -p package
+          echo "Copying requirements.txt to package directory..."
+          cp flask_app/requirements.txt package/
+          echo "Copying flask_app to package directory..."
+          cp -r flask_app package/
+        displayName: 'Prepare Package Directory with requirements.txt and flask_app'
 
-  # **🔹 確保 requirements.txt 確實存在**
-  - script: |
-      echo "Checking if requirements.txt exists in package directory..."
-      if [ -f package/requirements.txt ]; then
-        echo "✅ Found requirements.txt in package directory."
-      else
-        echo "❌ requirements.txt NOT found in package directory!"
-        exit 1
-      fi
-    displayName: 'Check if requirements.txt exists before packaging'
-
-  - task: ArchiveFiles@2
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-    inputs:
-      rootFolderOrFile: 'package'
-      includeRootFolder: false
-      archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
-      replaceExistingArchive: true
-      verbose: true
-    displayName: 'Archive flask_app + requirements.txt (Only on Merge)'
-
-  # **🔹 確保 App Service 內部會執行 pip install**
-  - task: AzureWebApp@1
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
-    inputs:
-      azureSubscription: 'twlife_azure_devops_poc'
-      appName: 'twlife-azure-devops-poc'
-      package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
-      appSettings: |
-        -SCM_DO_BUILD_DURING_DEPLOYMENT 1
-    displayName: 'Deploy to Azure App Service (Only on Merge)'
-
-  # **🔹 檢查 Flask 是否成功啟動**
-  - script: |
-      echo "Checking if Flask is running on App Service..."
-      HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net/health"
-      for i in {1..10}; do
-          HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
-          if [ "$HTTP_CODE" -eq 200 ]; then
-              echo "Flask is up and running at $HEALTH_URL!"
-              exit 0
+      - script: |
+          echo "Checking if requirements.txt exists in package directory..."
+          if [ -f package/requirements.txt ]; then
+            echo "✅ Found requirements.txt in package directory."
+          else
+            echo "❌ requirements.txt NOT found in package directory!"
+            exit 1
           fi
-          echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
-          sleep 5
-      done
-      echo "Flask service did not start in time. Failing deployment."
-      exit 1
-    displayName: 'Check Flask Health (Post Deployment)'
+        displayName: 'Verify requirements.txt in Package Directory'
+
+      - task: ArchiveFiles@2
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        inputs:
+          rootFolderOrFile: 'package'
+          includeRootFolder: false
+          archiveFile: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
+          replaceExistingArchive: true
+          verbose: true
+        displayName: 'Archive Package Directory (Only on Merge)'
+
+  - job: Deploy
+    displayName: 'Deploy to Azure'
+    dependsOn: Package
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    steps:
+      - task: AzureWebApp@1
+        inputs:
+          azureSubscription: 'twlife_azure_devops_poc'
+          appName: 'twlife-azure-devops-poc'
+          package: '$(Build.ArtifactStagingDirectory)/flask_app.zip'
+          appSettings: |
+            -SCM_DO_BUILD_DURING_DEPLOYMENT 1
+        displayName: 'Deploy Package to Azure App Service (Only on Merge)'
+
+      - script: |
+          echo "Checking if Flask is running on App Service..."
+          HEALTH_URL="https://twlife-azure-devops-poc-gtgtach8gcfreyhj.eastasia-01.azurewebsites.net/health"
+          for i in {1..10}; do
+              HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}\n" $HEALTH_URL)
+              if [ "$HTTP_CODE" -eq 200 ]; then
+                  echo "Flask is up and running at $HEALTH_URL!"
+                  exit 0
+              fi
+              echo "Health check failed with status $HTTP_CODE, retrying in 5s..."
+              sleep 5
+          done
+          echo "Flask service did not start in time. Failing deployment."
+          exit 1
+        displayName: 'Verify Flask Health Status on App Service (Post Deployment)'
