@@ -1,7 +1,3 @@
-"""
-This module provides system status for the application.
-"""
-
 import os
 import platform
 import psutil
