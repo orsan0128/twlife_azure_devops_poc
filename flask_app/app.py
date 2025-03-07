@@ -3,6 +3,8 @@ This module contains the core Flask application setup,
 including route definitions and configurations.
 """
 import os
+from datetime import timedelta
+
 from flask import Flask
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect  # 匯入 CSRFProtect
@@ -17,6 +19,17 @@ from flask_app.routes.config import config_bp
 load_dotenv()
 
 app = Flask(__name__)
+
+app.config['TEST_STRING'] = 'test string'
+app.config['TEST_INTEGER'] = 123
+app.config['TEST_FLOAT'] = 3.14
+app.config['TEST_BOOLEAN'] = True
+app.config['TEST_LIST'] = [1, 2, 3]
+app.config['TEST_DICT'] = {'key': 'value'}
+app.config['TEST_TIMEDELTA'] = timedelta(days=1)
+app.config['TEST_TUPLE'] = (1, 2, 3)
+app.config['TEST_SET'] = {1, 2, 3}
+app.config['TEST_BYTES'] = b'test bytes'
 
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY", default=None)
 if not SECRET_KEY:
