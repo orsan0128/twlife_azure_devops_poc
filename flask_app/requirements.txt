@@ -1,4 +1,6 @@
 Flask
+Flask-WTF
+python-dotenv
 pytest
 requests
 psutil
