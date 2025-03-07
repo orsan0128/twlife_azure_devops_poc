@@ -15,9 +15,23 @@ pr:
 pool:
   name: 'Default'
 
+variables:
+- group: twlife_azure_poc_library
+
 steps:
   - checkout: self
     displayName: 'Checkout Code'
+
+  - script: |
+      if ! command -v sonar-scanner &> /dev/null
+      then
+          echo "SonarScanner is not installed. Please install it manually with 'brew install sonar-scanner'."
+          exit 1
+      else
+          echo "SonarScanner is already installed!"
+          sonar-scanner -v
+      fi
+    displayName: 'Check SonarScanner Installation'
 
   - script: |
       echo "Checking Python installation..."
@@ -33,6 +47,19 @@ steps:
       python -m pip install --upgrade pip
       python -m pip install -r flask_app/requirements.txt  # 安裝依賴
     displayName: 'Install Dependencies'
+
+  - script: |
+      echo "Running SonarCloud Analysis on macOS..."
+      sonar-scanner \
+        -Dsonar.organization=orsan0128 \
+        -Dsonar.projectKey=orsan0128_twlife_azure_devops_poc \
+        -Dsonar.sources=flask_app \
+        -Dsonar.python.version=3.9 \
+        -Dsonar.host.url=https://sonarcloud.io \
+        -Dsonar.login=$(SONAR_TOKEN)
+    env:
+      SONAR_TOKEN: $(SONAR_TOKEN)
+    displayName: 'SonarCloud - Run Analysis'
 
   - script: |
       echo "Running flake8 linting..."
